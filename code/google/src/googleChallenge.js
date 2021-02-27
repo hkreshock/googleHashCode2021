@@ -5,10 +5,11 @@ const formatOutput = (variables) => {
         const lineOne = `${rule.index}\n`;
         const lineTwo = `${rule.incomingStreetsCount}\n`;
         const ruleList = rule.rulesArray.map(obj => {
-            return obj.street + ' ' + obj.duration;
+            return obj.street + ' ' + (obj.duration === 0 ? 1 : obj.duration);
         });
-        if (index % 200 === 0) console.log(`UPDATE: Compiled ${index} / ${variables.intersectionRules.length} output lines`)
-        return `${lineOne}${lineTwo}${ruleList.join('\n')}`;
+        const noDuplicates = [...new Set(ruleList)];
+        if (index === variables.intersectionRules.length - 1) console.log(`UPDATE: Compiled all output lines`);
+        return `${lineOne}${lineTwo}${noDuplicates.join('\n')}`;
     });
     return `${firstLine}${body.join('\n')}`;
 };
@@ -44,8 +45,8 @@ const check = (string) => {
         } else if (0 < index && index < inputVariables.streetCount + 1) {
             // INFO // add street data
             const street = {
-                startIntersection: variables[0],
-                endIntersection: variables[1],
+                startIntersection: Number(variables[0]),
+                endIntersection: Number(variables[1]),
                 name: variables[2],
                 duration: variables[3],
                 utilized: false
@@ -76,26 +77,27 @@ const check = (string) => {
         if (index === arrayOfLines.length - 1) console.log(`UPDATE: Broke up all input lines`);
     }
     // INFO // set number of intersections, with their index (name)
-    let count = 0;
-    arrayOfStreets = arrayOfStreets.filter(street => {
+    arrayOfStreets = arrayOfStreets.sort((a, b) => a.endIntersection - b.endIntersection).filter(street => {
         if (street.utilized) {
-            intersectionArray.push({
-                index: count,
-                incomingStreets: []
-            });
-            count ++;
+            const intersectionExists = intersectionArray.filter(item => item.index === street.endIntersection ? item : null);
+            if (intersectionExists.length === 0) {
+                intersectionArray.push({
+                    index: street.endIntersection,
+                    incomingStreets: []
+                });
+            }
             return street;
         }
     });
     // INFO // filter intersections array to only hold intersections with an incoming street
     // INFO // (intersections without incoming streets will always have red light)
-    intersectionArray = intersectionArray.filter(intersection => {
+    intersectionArray = intersectionArray.sort((a, b) => a.index - b.index).filter((intersection, filterIndex) => {
         const incomingStreets = arrayOfStreets.filter(street => {
-            if (street.endIntersection == intersection.index) {
+            if (street.endIntersection === intersection.index) {
                 return street;
             }
         }).map(street => street.name);
-        intersectionArray[intersection.index].incomingStreets = incomingStreets;
+        intersectionArray[filterIndex].incomingStreets = incomingStreets;
         if (incomingStreets.length > 0) {
             return intersection;
         }
@@ -106,7 +108,7 @@ const check = (string) => {
     // INFO // set basic rule objects
     intersectionArray.forEach((intersection, index) => {
         const intersectionRule = {
-            index,
+            index: intersection.index,
             incomingStreetsCount: intersection.incomingStreets.length,
             incomingStreets: intersection.incomingStreets,
             rulesArray: []
@@ -114,7 +116,7 @@ const check = (string) => {
         if (intersection.incomingStreets.length === 1) {
             const rule = {
                 street: intersection.incomingStreets[0],
-                duration: 1
+                duration: inputVariables.simulationDuration
             }
             intersectionRule.rulesArray.push(rule);
         } else if (intersection.incomingStreets.length > 1) {
@@ -147,7 +149,7 @@ const check = (string) => {
                     if (idx !== 0) {
                         pointOfContact = pointOfContact + Number(street.duration);
                     }
-                    if (street.endIntersection == item.index) {
+                    if (street.endIntersection === item.index) {
                         streetName = street.street;
                     }
                 } else {
@@ -157,8 +159,21 @@ const check = (string) => {
             if (streetName) contactPoints.push({ pointOfContact, streetName, timeRemaining });
         });
         contactPoints = contactPoints.sort((a, b) => a.pointOfContact < b.pointOfContact ? -1 : 1);
+        const reorderedArray = [];
+        contactPoints.forEach(point => {
+            for (let intersectionRulesIdx = 0; intersectionRulesIdx < item.rulesArray.length; intersectionRulesIdx++) {
+                const object = item.rulesArray[intersectionRulesIdx];
+                if (point.streetName === object.street) {
+                    reorderedArray.push(object);
+                }
+            }
+        });
+        if (reorderedArray.length > 0) {
+            item.rulesArray = reorderedArray;
+        }
         // INFO // set advanced rule object duration
         for (let idx = 0; idx < contactPoints.length; idx++) {
+
             const contact = JSON.parse(JSON.stringify((contactPoints[idx])));
             if (idx === 0) {
                 const dur = contact.pointOfContact + 1;
@@ -176,7 +191,7 @@ const check = (string) => {
                 })
             }
         }
-        if (intersectionIndex % 50 === 0) console.log(`UPDATE: Processed ${intersectionIndex} / ${outputVariables.intersectionRules.length} advanced intersections`);
+        if (intersectionIndex === outputVariables.intersectionRules.length - 1) console.log('UPDATE: Processed all advanced intersections');
     });
     // INFO // return ASCII output
     return formatOutput(outputVariables);
