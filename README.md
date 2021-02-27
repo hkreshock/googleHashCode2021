@@ -1,2 +1,1 @@
-# andre-hunter-API
-# dsa-sorting-owen-hunter
+# Google Hash Code Challenge 2021
