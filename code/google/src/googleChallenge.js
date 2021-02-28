@@ -8,7 +8,7 @@ const formatOutput = (variables) => {
             return obj.street + ' ' + (obj.duration === 0 ? 1 : obj.duration);
         });
         const noDuplicates = [...new Set(ruleList)];
-        if (index === variables.intersectionRules.length - 1) console.log(`UPDATE: Compiled all output lines`);
+        if (index % 250 === 0) console.log(`UPDATE: Compiled ${index} / ${variables.intersectionRules.length} rules`);
         return `${lineOne}${lineTwo}${noDuplicates.join('\n')}`;
     });
     return `${firstLine}${body.join('\n')}`;
@@ -74,7 +74,7 @@ const check = (string) => {
             }
             carRoutes.push(route);
         }
-        if (index === arrayOfLines.length - 1) console.log(`UPDATE: Broke up all input lines`);
+        if (index % 250 === 0) console.log(`UPDATE: Broke up ${index} / ${arrayOfLines.length} input lines`);
     }
     // INFO // set number of intersections, with their index (name)
     arrayOfStreets = arrayOfStreets.sort((a, b) => a.endIntersection - b.endIntersection).filter(street => {
@@ -116,7 +116,7 @@ const check = (string) => {
         if (intersection.incomingStreets.length === 1) {
             const rule = {
                 street: intersection.incomingStreets[0],
-                duration: inputVariables.simulationDuration
+                duration: 1
             }
             intersectionRule.rulesArray.push(rule);
         } else if (intersection.incomingStreets.length > 1) {
@@ -129,7 +129,7 @@ const check = (string) => {
             });
         }
         outputVariables.intersectionRules.push(intersectionRule);
-        if (index === intersectionArray.length - 1) console.log(`UPDATE: Processed all basic intersections`);
+        if (index % 250 === 0) console.log(`UPDATE: Processed ${index} / ${intersectionArray.length} basic intersections`);
     });
     outputVariables.intersectionRules.forEach((item, intersectionIndex) => {
         // INFO // set advanced rule object variables
@@ -153,7 +153,7 @@ const check = (string) => {
                         streetName = street.street;
                     }
                 } else {
-                    timeRemaining = timeRemaining + Number(street.duration);
+                    if (timeRemaining === 0) timeRemaining = Number(street.duration);
                 }
             }
             if (streetName) contactPoints.push({ pointOfContact, streetName, timeRemaining });
@@ -173,25 +173,30 @@ const check = (string) => {
         }
         // INFO // set advanced rule object duration
         for (let idx = 0; idx < contactPoints.length; idx++) {
-
-            const contact = JSON.parse(JSON.stringify((contactPoints[idx])));
-            if (idx === 0) {
+            const contact = contactPoints[idx];
+            if (contactPoints.length === 1) {
                 const dur = contact.pointOfContact + 1;
                 outputVariables.intersectionRules[intersectionIndex].rulesArray.forEach(rule => {
                     if (rule.duration === 0 && rule.street === contact.streetName) {
-                        rule.duration = dur > 0 ? dur : 1;
+                        rule.duration = dur;
                     }
-                })
+                });
             } else {
-                const dur = contact.pointOfContact - contactPoints[idx - 1].pointOfContact;
+                const nextContact = contactPoints[idx + 1];
+                let dur = 1;
+                if (nextContact) {
+                    dur = nextContact.pointOfContact - contact.pointOfContact > 15 ? 15 : nextContact.pointOfContact - contact.pointOfContact;
+                } else {
+                    dur = contact.timeRemaining > 15 ? 15 : contact.timeRemaining;
+                }
                 outputVariables.intersectionRules[intersectionIndex].rulesArray.forEach(rule => {
                     if (rule.duration === 0 && rule.street === contact.streetName) {
                         rule.duration = dur > 0 ? dur : 1;
                     }
-                })
+                });
             }
         }
-        if (intersectionIndex === outputVariables.intersectionRules.length - 1) console.log('UPDATE: Processed all advanced intersections');
+        if (intersectionIndex % 250 === 0) console.log(`UPDATE: Processed ${intersectionIndex} / ${outputVariables.intersectionRules.length} advanced intersections`);
     });
     // INFO // return ASCII output
     return formatOutput(outputVariables);
