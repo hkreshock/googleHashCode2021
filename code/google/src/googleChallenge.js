@@ -3,11 +3,12 @@ const formatOutput = (variables) => {
     const firstLine = `${variables.scheduleCount}\n`
     const body = variables.intersectionRules.map((rule, index) => {
         const lineOne = `${rule.index}\n`;
-        const lineTwo = `${rule.incomingStreetsCount}\n`;
+        let lineTwo = `${rule.incomingStreetsCount}\n`;
         const ruleList = rule.rulesArray.map(obj => {
             return obj.street + ' ' + (obj.duration === 0 ? 1 : obj.duration);
         });
         const noDuplicates = [...new Set(ruleList)];
+        if (noDuplicates.length !== rule.incomingStreetsCount) lineTwo = `${noDuplicates.length}\n`;
         if (index % 250 === 0) console.log(`UPDATE: Compiled ${index} / ${variables.intersectionRules.length} rules`);
         return `${lineOne}${lineTwo}${noDuplicates.join('\n')}`;
     });
@@ -182,16 +183,9 @@ const check = (string) => {
                     }
                 });
             } else {
-                const nextContact = contactPoints[idx + 1];
-                let dur = 1;
-                if (nextContact) {
-                    dur = nextContact.pointOfContact - contact.pointOfContact > 15 ? 15 : nextContact.pointOfContact - contact.pointOfContact;
-                } else {
-                    dur = contact.timeRemaining > 15 ? 15 : contact.timeRemaining;
-                }
                 outputVariables.intersectionRules[intersectionIndex].rulesArray.forEach(rule => {
                     if (rule.duration === 0 && rule.street === contact.streetName) {
-                        rule.duration = dur > 0 ? dur : 1;
+                        rule.duration = 1;
                     }
                 });
             }
